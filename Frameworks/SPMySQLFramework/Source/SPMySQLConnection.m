@@ -620,8 +620,22 @@ asm(".desc ___crashreporter_info__, 0x10");
 	} else if ([delegate respondsToSelector:@selector(keychainPasswordForConnection:)]) {
 		thePassword = _cStringForStringWithEncoding([delegate keychainPasswordForConnection:self], connectEncodingNS, NULL);
 	}
-
-	// If set to use a socket and a socket was supplied, use it; otherwise, search for a socket to use
+    
+    NSArray *hostComponents = [host componentsSeparatedByString:@"."];
+    NSArray *envs = @[@"stag", @"prod", @"qa", @"perf"];
+    if ([envs indexOfObject:hostComponents.lastObject] != NSNotFound) {
+        NSString *env = hostComponents.lastObject;
+        NSString *dbPath = nil;
+        if ([@[@"replica", @"master"] indexOfObject: hostComponents.firstObject] == NSNotFound) {
+            dbPath = hostComponents.firstObject;
+        } else {
+            dbPath = hostComponents[1];
+        }
+        NSString *group = [NSString stringWithFormat:@"client_%@.%@", env, dbPath];
+        mysql_options(theConnection, MYSQL_READ_DEFAULT_GROUP, [group UTF8String]);
+    }
+    
+    // If set to use a socket and a socket was supplied, use it; otherwise, search for a socket to use
 	if (useSocket) {
 		//default to user supplied path
 		NSString *mySocketPath = socketPath;
